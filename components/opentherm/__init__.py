@@ -61,6 +61,10 @@ CONF_MASTER_OT_VERSION = "master_ot_version"
 CONF_SLAVE_OT_VERSION = "slave_ot_version"
 CONF_DROPPED_FRAMES = "dropped_frames"
 
+# Clamp configuration
+CONF_CLAMP_THRESHOLD = "clamp_threshold"
+CONF_CLAMP_RATIO = "clamp_ratio"
+
 # Generate namespaces
 opentherm_ns = cg.esphome_ns.namespace("esphome::opentherm")
 OpenthermComponent = opentherm_ns.class_("OpenthermComponent", cg.Component)
@@ -202,6 +206,9 @@ CONFIG_SCHEMA = cv.Schema({
     ).extend({
         cv.Optional(CONF_CURRENT_TEMPERATURE_SENSOR): cv.use_id(sensor.Sensor),
     }),
+    cv.Optional(CONF_CLAMP_RATIO): cv.float_,
+    cv.Optional(CONF_CLAMP_THRESHOLD): cv.float_,
+
 }).extend(cv.COMPONENT_SCHEMA)
 
 

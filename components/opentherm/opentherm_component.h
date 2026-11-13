@@ -72,6 +72,10 @@ namespace esphome
       void set_fault_sensor(binary_sensor::BinarySensor *sensor) { fault_ = sensor; }
       void set_diagnostic_sensor(binary_sensor::BinarySensor *sensor) { diagnostic_ = sensor; }
 
+      // Clamp setters
+      void set_clamp_threshold(float t) { clamp_threshold_ = t; }
+      void set_clamp_ratio(float t) { clamp_ratio_ = t; }
+
       // Climate registration
       void register_climate(OpenthermClimate *climate);
 
@@ -102,6 +106,9 @@ namespace esphome
       int out_pin_{5};
       int slave_in_pin_{12};
       int slave_out_pin_{13};
+
+      float clamp_threshold_{NAN};
+      float clamp_ratio_{NAN};
 
       // OpenTherm instances
       OpenTherm *ot_{nullptr};

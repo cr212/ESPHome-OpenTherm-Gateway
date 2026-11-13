@@ -464,6 +464,24 @@ namespace esphome
         return;
       }
 
+      if (instance_->ot_->getMessageType(request) == OpenThermMessageType::WRITE_DATA &&
+          instance_->ot_->getDataID(request) == OpenThermMessageID::TSet) {
+        if (!std::isnan(instance_->cached_room_setpoint_.value) &&
+            !std::isnan(instance_->cached_room_temp_.value) &&
+            !std::isnan(instance_->clamp_threshold_) &&
+            !std::isnan(instance_->clamp_ratio_)) {
+          float requested_tset = instance_->ot_->getFloat(request);
+          if (requested_tset > instance_->clamp_threshold_) {
+            float room_error = instance_->cached_room_setpoint_.value - instance_->cached_room_temp_.value;
+            float clamped_tset = std::min(requested_tset, instance_->clamp_threshold_ + (room_error * instance_->clamp_ratio_));
+            unsigned long orig_request = request;
+            unsigned long new_request = instance_->ot_->buildRequest(OpenThermMessageType::WRITE_DATA, OpenThermMessageID::TSet, instance_->ot_->temperatureToData(clamped_tset));
+            ESP_LOGI(TAG, "Clamped Tset from %.1f°C to %.1f°C (room_error=%.1f°C); was 0x%08lX, now 0x%08lX", requested_tset, clamped_tset, room_error, orig_request, new_request);
+            request = new_request;
+          }
+        }
+      }
+
       unsigned long response = instance_->ot_->sendRequest(request);
       // 0 = boiler did not answer, bad parity = noise; let the thermostat time out instead of relaying garbage
       if (response != 0 && !instance_->ot_->parity(response))
