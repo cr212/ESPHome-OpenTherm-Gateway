@@ -59,7 +59,9 @@ namespace esphome
       // Read max CH setpoint (Data-ID 57)
       if (max_ch_setpoint_sensor_ != nullptr)
       {
-        unsigned long response = ot_->sendRequest(ot_->buildRequest(OpenThermRequestType::READ, OpenThermMessageID::MaxTSet, 0));
+        unsigned long request = ot_->buildRequest(OpenThermRequestType::READ, OpenThermMessageID::MaxTSet, 0);
+        unsigned long response = ot_->sendRequest(request);
+        ESP_LOGD(TAG, "setup read MaxTSet 0x%08lX -> 0x%08lX valid = %i", request, response, ot_->isValidResponse(response));
         if (ot_->isValidResponse(response))
         {
           float value = ot_->getFloat(response);
@@ -74,7 +76,8 @@ namespace esphome
       // Read max relative modulation (Data-ID 14)
       if (max_modulation_sensor_ != nullptr)
       {
-        unsigned long response = ot_->sendRequest(ot_->buildRequest(OpenThermRequestType::READ, OpenThermMessageID::MaxRelModLevelSetting, 0));
+        unsigned long request = ot_->buildRequest(OpenThermRequestType::READ, OpenThermMessageID::MaxRelModLevelSetting, 0);
+        unsigned long response = ot_->sendRequest(request);
         if (ot_->isValidResponse(response))
         {
           float value = ot_->getFloat(response);
@@ -208,7 +211,9 @@ namespace esphome
         // OEM fault code (Data-ID 5) - Application-specific fault flags
         if (oem_fault_code_sensor_ != nullptr)
         {
-          unsigned long response = ot_->sendRequest(ot_->buildRequest(OpenThermRequestType::READ, OpenThermMessageID::ASFflags, 0));
+          unsigned long request = ot_->buildRequest(OpenThermRequestType::READ, OpenThermMessageID::ASFflags, 0);
+          unsigned long response = ot_->sendRequest(request);
+          ESP_LOGD(TAG, "loop read ASF 0x%08lX -> 0x%08lX valid = %i", request, response, ot_->isValidResponse(response));
           if (ot_->isValidResponse(response))
           {
             uint16_t fault_code = response & 0xFF; // Low byte contains OEM fault code
@@ -223,7 +228,9 @@ namespace esphome
         // OEM diagnostic code (Data-ID 115)
         if (oem_diagnostic_code_sensor_ != nullptr)
         {
-          unsigned long response = ot_->sendRequest(ot_->buildRequest(OpenThermRequestType::READ, OpenThermMessageID::OEMDiagnosticCode, 0));
+          unsigned long request = ot_->buildRequest(OpenThermRequestType::READ, OpenThermMessageID::OEMDiagnosticCode, 0);
+          unsigned long response = ot_->sendRequest(request);
+          ESP_LOGD(TAG, "loop read OEM Diagnsotics 0x%08lX -> 0x%08lX valid = %i", request, response, ot_->isValidResponse(response));
           if (ot_->isValidResponse(response))
           {
             uint16_t diag_code = response & 0xFFFF; // Full 16-bit diagnostic code
@@ -352,6 +359,7 @@ namespace esphome
       unsigned int data = ot_->temperatureToData(temperature);
       unsigned long request = ot_->buildRequest(OpenThermRequestType::WRITE, write_msg_id, data);
       unsigned long response = ot_->sendRequest(request);
+          ESP_LOGD(TAG, "setTemperatureWithVerification 0x%08lX -> 0x%08lX valid = %i", request, response, ot_->isValidResponse(response));
 
       if (!ot_->isValidResponse(response))
       {
@@ -366,8 +374,9 @@ namespace esphome
       const int max_retries = 3;
       for (int retry = 0; retry < max_retries; retry++)
       {
-        unsigned long read_response = ot_->sendRequest(
-            ot_->buildRequest(OpenThermRequestType::READ, read_msg_id, 0));
+        unsigned long read_request = ot_->buildRequest(OpenThermRequestType::READ, read_msg_id, 0);
+        unsigned long read_response = ot_->sendRequest(read_request);
+          ESP_LOGD(TAG, "setTemperatureWithVerification retry 0x%08lX -> 0x%08lX valid = %i", read_request, read_response, ot_->isValidResponse(response));
 
         if (ot_->isValidResponse(read_response))
         {
@@ -465,7 +474,7 @@ namespace esphome
       OpenThermMessageType msg_type = instance_->ot_->getMessageType(request);
       bool valid = instance_->ot_->isValidResponse(response);
 
-      ESP_LOGV(TAG, "Relayed 0x%08lX -> 0x%08lX", request, response);
+      ESP_LOGD(TAG, "Relayed 0x%08lX -> 0x%08lX valid = %i", request, response, valid);
 
       if (msg_type == OpenThermMessageType::WRITE_DATA)
         instance_->logThermostatWrite(request);
@@ -704,8 +713,10 @@ namespace esphome
       PendingFetch fetch = pending_fetches_.front();
       pending_fetches_.erase(pending_fetches_.begin());
 
-      unsigned long response = ot_->sendRequest(ot_->buildRequest(OpenThermRequestType::READ, fetch.id, 0));
+      unsigned long request = ot_->buildRequest(OpenThermRequestType::READ, fetch.id, 0);
+      unsigned long response = ot_->sendRequest(request);
       fetch.cache->last_update = millis(); // Also on failure, to rate limit retries
+      ESP_LOGD(TAG, "fetchPendingValue 0x%08lX -> 0x%08lX valid = %i", request, response, ot_->isValidResponse(response));
 
       if (ot_->isValidResponse(response))
       {
