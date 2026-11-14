@@ -482,7 +482,11 @@ namespace esphome
         }
       }
 
+      ESP_LOGD(TAG, "Relaying: sending 0x%08lX", request);
       unsigned long response = instance_->ot_->sendRequest(request);
+      bool valid = instance_->ot_->isValidResponse(response);
+
+      ESP_LOGD(TAG, "Relayed 0x%08lX -> 0x%08lX valid = %i", request, response, valid);
       // 0 = boiler did not answer, bad parity = noise; let the thermostat time out instead of relaying garbage
       if (response != 0 && !instance_->ot_->parity(response))
         instance_->slave_ot_->sendResponse(response);
@@ -490,9 +494,6 @@ namespace esphome
 
       OpenThermMessageID id = instance_->ot_->getDataID(request);
       OpenThermMessageType msg_type = instance_->ot_->getMessageType(request);
-      bool valid = instance_->ot_->isValidResponse(response);
-
-      ESP_LOGD(TAG, "Relayed 0x%08lX -> 0x%08lX valid = %i", request, response, valid);
 
       if (msg_type == OpenThermMessageType::WRITE_DATA)
         instance_->logThermostatWrite(request);
