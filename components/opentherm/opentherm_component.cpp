@@ -110,8 +110,7 @@ namespace esphome
       }
     }
 
-    void OpenthermComponent::loop()
-    {
+    void OpenthermComponent::processSlave() {
       slave_ot_->process();
 
       // Process intercepted responses (moved from interrupt context)
@@ -121,7 +120,14 @@ namespace esphome
         has_new_intercepted_response_ = false;
       }
 
+
+    }
+
+    void OpenthermComponent::loop()
+    {
+      processSlave();
       fetchPendingValue();
+      processSlave();
     }
 
     void OpenthermComponent::update()
@@ -742,14 +748,12 @@ namespace esphome
         fetch.cache->value = decodeMessageValue(response, fetch.id);
         ESP_LOGV(TAG, "Fetched msg_id %d: %.2f", static_cast<int>(fetch.id), fetch.cache->value);
       }
-      else
-      {
-        ESP_LOGW(TAG, "Failed to fetch value for msg_id %d (response 0x%08lX), using stale cache if available",
-                 static_cast<int>(fetch.id), response);
-      }
+      // else
+      // {
+      //   ESP_LOGW(TAG, "Failed to fetch value for msg_id %d (response 0x%08lX), using stale cache if available",
+      //            static_cast<int>(fetch.id), response);
+      // }
 
-      // Forward a thermostat frame that arrived while we were blocked
-      slave_ot_->process();
     }
 
     float OpenthermComponent::readGenericSensorValue(GenericReadSensor &read_sensor)

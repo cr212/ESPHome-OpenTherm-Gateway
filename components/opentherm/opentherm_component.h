@@ -231,6 +231,7 @@ namespace esphome
           OpenThermMessageID read_msg_id,
           OpenthermClimate *climate,
           const char *name);
+      void processSlave();
 
       // Interrupt handlers
       static void IRAM_ATTR handleInterrupt();
