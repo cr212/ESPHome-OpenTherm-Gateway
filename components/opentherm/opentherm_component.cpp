@@ -747,6 +747,7 @@ namespace esphome
 
       // process writes before fetches:
       float* pending_writes[] = {&pending_tset_write_, &pending_dhwset_write_, &pending_trset_write_};
+      CachedValue* pending_caches[] = {&cached_heating_target_, &cached_dhw_target_, &cached_room_setpoint_};
       OpenThermMessageID pending_message_ids[] = {OpenThermMessageID::TSet, OpenThermMessageID::TdhwSet , OpenThermMessageID::TrSet};
       for (int i = 0; i < sizeof(pending_writes) / sizeof(float*); i++) {
         if (std::isnan(*pending_writes[i])) continue;
@@ -757,10 +758,12 @@ namespace esphome
         ESP_LOGI(TAG, "writePending: 0x%08lX -> 0x%08lX valid = %i", request, response, valid);
         *pending_writes[i] = NAN;
         if (valid) {
+          float value = decodeMessageValue(response, pending_message_ids[i]);
+          pending_caches[i]->value = value;
           // remove any pending fetches, assume there's only one for a given id:
           for (auto it = pending_fetches_.begin(); it != pending_fetches_.end(); it++) {
             if (it->id == pending_message_ids[i]) {
-              it->cache->value = decodeMessageValue(response, it->id);
+              it->cache->value = value;
               it->cache->last_update = millis();
               pending_fetches_.erase(it);
               return;
