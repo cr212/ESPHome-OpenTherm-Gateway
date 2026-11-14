@@ -223,6 +223,13 @@ async def to_code(config):
     cg.add(var.set_slave_in_pin(config[CONF_SLAVE_IN_PIN]))
     cg.add(var.set_slave_out_pin(config[CONF_SLAVE_OUT_PIN]))
 
+    if CONF_CLAMP_RATIO in config:
+        cg.add(var.set_clamp_ratio(config[CONF_CLAMP_RATIO]))
+    if CONF_CLAMP_THRESHOLD in config:
+        cg.add(var.set_clamp_threshold(config[CONF_CLAMP_THRESHOLD]))
+
+
+
     # Register sensors
     if CONF_EXTERNAL_TEMPERATURE in config:
         sens = await sensor.new_sensor(config[CONF_EXTERNAL_TEMPERATURE])
