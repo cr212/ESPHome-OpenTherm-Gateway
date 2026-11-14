@@ -492,7 +492,11 @@ namespace esphome
       unsigned long response = instance_->ot_->sendRequest(request);
       bool valid = instance_->ot_->isValidResponse(response);
 
-      ESP_LOGD(TAG, "Relayed 0x%08lX -> 0x%08lX valid = %i", request, response, valid);
+      if (!valid) {
+        ESP_LOGI(TAG, "Relayed 0x%08lX -> 0x%08lX valid = %i", request, response, valid);
+      } else {
+        ESP_LOGD(TAG, "Relayed 0x%08lX -> 0x%08lX valid = %i", request, response, valid);
+      }
       // 0 = boiler did not answer, bad parity = noise; let the thermostat time out instead of relaying garbage
       if (response != 0 && !instance_->ot_->parity(response))
         instance_->slave_ot_->sendResponse(response);
