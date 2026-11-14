@@ -53,6 +53,13 @@ namespace esphome
                                                                 { return this->setHeatingTargetTemperature(temperature); });
       }
 
+      if (room_climate_ != nullptr)
+      {
+        room_climate_->set_target_temperature_callback([this](float temperature)
+                                                                { pending_trset_write_ = temperature;
+                                                                return true; });
+      }
+
       // Read Phase 1 values once at startup (these don't change)
       delay(1000); // Give OpenTherm time to initialize
 
@@ -427,22 +434,26 @@ namespace esphome
 
     bool OpenthermComponent::setHotWaterTemperature(float temperature)
     {
-      return setTemperatureWithVerification(
-          temperature,
-          OpenThermMessageID::TdhwSet,
-          OpenThermMessageID::TdhwSet,
-          hot_water_climate_,
-          "DHW");
+      pending_dhwset_write_ = temperature;
+      return true;
+      // return setTemperatureWithVerification(
+      //     temperature,
+      //     OpenThermMessageID::TdhwSet,
+      //     OpenThermMessageID::TdhwSet,
+      //     hot_water_climate_,
+      //     "DHW");
     }
 
     bool OpenthermComponent::setHeatingTargetTemperature(float temperature)
     {
-      return setTemperatureWithVerification(
-          temperature,
-          OpenThermMessageID::TSet,
-          OpenThermMessageID::TSet,
-          heating_water_climate_,
-          "CH");
+      pending_tset_write_ = temperature;
+      return true;
+      // return setTemperatureWithVerification(
+      //     temperature,
+      //     OpenThermMessageID::TSet,
+      //     OpenThermMessageID::TSet,
+      //     heating_water_climate_,
+      //     "CH");
     }
 
     float OpenthermComponent::getModulation()
@@ -477,14 +488,21 @@ namespace esphome
             !std::isnan(instance_->clamp_threshold_) &&
             !std::isnan(instance_->clamp_ratio_)) {
           float requested_tset = instance_->ot_->getFloat(request);
+          float room_error = instance_->cached_room_setpoint_.value - instance_->cached_room_temp_.value;
           if (requested_tset > instance_->clamp_threshold_) {
-            float room_error = instance_->cached_room_setpoint_.value - instance_->cached_room_temp_.value;
             float clamped_tset = std::min(requested_tset, instance_->clamp_threshold_ + (room_error * instance_->clamp_ratio_));
             unsigned long orig_request = request;
             unsigned long new_request = instance_->ot_->buildRequest(OpenThermMessageType::WRITE_DATA, OpenThermMessageID::TSet, instance_->ot_->temperatureToData(clamped_tset));
             ESP_LOGI(TAG, "Clamped Tset from %.1f°C to %.1f°C (room_error=%.1f°C); was 0x%08lX, now 0x%08lX", requested_tset, clamped_tset, room_error, orig_request, new_request);
             request = new_request;
+          } else {
+            ESP_LOGD(TAG, "Not clamping, looks reasonable: %.1f°C (room_error=%.1f°C);", requested_tset, room_error);
           }
+        } else {
+          if (std::isnan(instance_->cached_room_setpoint_.value)) ESP_LOGD(TAG, "Not clamping - no cached_room_setpoint.value");
+          if (std::isnan(instance_->cached_room_temp_.value)) ESP_LOGD(TAG, "Not clamping - no cached_room_temp_.value");
+          if (std::isnan(instance_->clamp_threshold_)) ESP_LOGD(TAG, "Not clamping - no clamp_threshold_");
+          if (std::isnan(instance_->clamp_ratio_)) ESP_LOGD(TAG, "Not clamping - no clamp_ratio_");
         }
       }
 
@@ -719,7 +737,7 @@ namespace esphome
 
     void OpenthermComponent::fetchPendingValue()
     {
-      if (pending_fetches_.empty() || !slave_ot_->isReady())
+      if ((pending_fetches_.empty() && hasNoPendingWrite()) || !slave_ot_->isReady())
         return;
 
       // The thermostat sends about one frame per second. Reading right after a relayed frame keeps our
@@ -728,6 +746,31 @@ namespace esphome
       if (since_relay > FETCH_WINDOW_ && since_relay < THERMOSTAT_SILENT_)
         return;
 
+      // process writes before fetches:
+      float* pending_writes[] = {&pending_tset_write_, &pending_dhwset_write_, &pending_trset_write_};
+      OpenThermMessageID pending_message_ids[] = {OpenThermMessageID::TSet, OpenThermMessageID::Tdhw , OpenThermMessageID::TrSet};
+      for (int i = 0; i < sizeof(pending_writes) / sizeof(float*); i++) {
+        if (std::isnan(*pending_writes[i])) continue;
+        unsigned int data = ot_->temperatureToData(*pending_writes[i]);
+        unsigned long request = ot_->buildRequest(OpenThermRequestType::WRITE, pending_message_ids[i], data);
+        unsigned long response = ot_->sendRequest(request);
+        bool valid = ot_->isValidResponse(response);
+        ESP_LOGD(TAG, "writePending: 0x%08lX -> 0x%08lX valid = %i", request, response, valid);
+        *pending_writes[i] = NAN;
+        if (valid) {
+          // remove any pending fetches, assume there's only one for a given id:
+          for (auto it = pending_fetches_.begin(); it != pending_fetches_.end(); it++) {
+            if (it->id == pending_message_ids[i]) {
+              it->cache->value = decodeMessageValue(response, it->id);
+              it->cache->last_update = millis();
+              pending_fetches_.erase(it);
+              break;
+            }
+          }
+        }
+        // Forward a thermostat frame that arrived while we were blocked
+        slave_ot_->process();
+      }
       // Drop entries an intercepted thermostat exchange already refreshed since they were queued
       while (!pending_fetches_.empty())
       {

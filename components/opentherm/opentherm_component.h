@@ -110,6 +110,17 @@ namespace esphome
       float clamp_threshold_{NAN};
       float clamp_ratio_{NAN};
 
+      float pending_tset_write_{NAN};
+      float pending_trset_write_{NAN};
+      float pending_dhwset_write_{NAN};
+
+
+      bool hasNoPendingWrite() {
+        return std::isnan(pending_tset_write_) &&
+          std::isnan(pending_trset_write_) &&
+          std::isnan(pending_dhwset_write_);
+      }
+
       // OpenTherm instances
       OpenTherm *ot_{nullptr};
       OpenTherm *slave_ot_{nullptr};
