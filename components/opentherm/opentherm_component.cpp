@@ -747,7 +747,7 @@ namespace esphome
 
       // process writes before fetches:
       float* pending_writes[] = {&pending_tset_write_, &pending_dhwset_write_, &pending_trset_write_};
-      OpenThermMessageID pending_message_ids[] = {OpenThermMessageID::TSet, OpenThermMessageID::Tdhw , OpenThermMessageID::TrSet};
+      OpenThermMessageID pending_message_ids[] = {OpenThermMessageID::TSet, OpenThermMessageID::TdhwSet , OpenThermMessageID::TrSet};
       for (int i = 0; i < sizeof(pending_writes) / sizeof(float*); i++) {
         if (std::isnan(*pending_writes[i])) continue;
         unsigned int data = ot_->temperatureToData(*pending_writes[i]);
