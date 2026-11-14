@@ -499,17 +499,17 @@ namespace esphome
             request = new_request;
           }
         } else {
-          if (std::isnan(instance_->cached_room_setpoint_.value)) ESP_LOGD(TAG, "Not clamping - no cached_room_setpoint.value");
-          if (std::isnan(instance_->cached_room_temp_.value)) ESP_LOGD(TAG, "Not clamping - no cached_room_temp_.value");
-          if (std::isnan(instance_->clamp_threshold_)) ESP_LOGD(TAG, "Not clamping - no clamp_threshold_");
-          if (std::isnan(instance_->clamp_ratio_)) ESP_LOGD(TAG, "Not clamping - no clamp_ratio_");
+          if (std::isnan(instance_->cached_room_setpoint_.value)) { ESP_LOGD(TAG, "Not clamping - no cached_room_setpoint.value"); }
+          if (std::isnan(instance_->cached_room_temp_.value)) { ESP_LOGD(TAG, "Not clamping - no cached_room_temp_.value"); }
+          if (std::isnan(instance_->clamp_threshold_)) { ESP_LOGD(TAG, "Not clamping - no clamp_threshold_"); }
+          if (std::isnan(instance_->clamp_ratio_)) { ESP_LOGD(TAG, "Not clamping - no clamp_ratio_"); }
         }
       }
 
       unsigned long response = instance_->ot_->sendRequest(request);
       bool valid = instance_->ot_->isValidResponse(response);
 
-      if (!valid) {
+      if (!valid || instance_->ot_->getDataID(request) == OpenThermMessageID::TdhwSet) {
         ESP_LOGI(TAG, "Relayed 0x%08lX -> 0x%08lX valid = %i", request, response, valid);
       } else {
         ESP_LOGD(TAG, "Relayed 0x%08lX -> 0x%08lX valid = %i", request, response, valid);
@@ -787,7 +787,9 @@ namespace esphome
       unsigned long response = ot_->sendRequest(request);
       fetch.cache->last_update = millis(); // Also on failure, to rate limit retries
       ESP_LOGD(TAG, "fetchPendingValue 0x%08lX -> 0x%08lX valid = %i", request, response, ot_->isValidResponse(response));
-
+      if (fetch.id == 56) {
+        ESP_LOGI(TAG, "fetchPendingValue 0x%08lX -> 0x%08lX valid = %i", request, response, ot_->isValidResponse(response));
+      }
       if (ot_->isValidResponse(response))
       {
         fetch.cache->value = decodeMessageValue(response, fetch.id);
